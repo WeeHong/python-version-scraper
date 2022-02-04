@@ -5,16 +5,23 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"os"
 	"regexp"
 
 	"github.com/gocolly/colly/v2"
 	"github.com/gorilla/mux"
 	"github.com/hashicorp/go-version"
+	"github.com/joho/godotenv"
 	"github.com/throttled/throttled"
 	"github.com/throttled/throttled/store/memstore"
 )
 
 func main() {
+	err := godotenv.Load(".env")
+	if err != nil {
+		log.Fatalf("Error loading .env file")
+	}
+
 	store, err := memstore.New(65536)
 	if err != nil {
 		log.Fatal(err)
@@ -51,7 +58,9 @@ func main() {
 		rw.Write([]byte("Under Implementation"))
 	}).Methods("GET")
 
-	http.ListenAndServe(":8080", httpRateLimiter.RateLimit(router))
+	fmt.Println(os.Getenv("PORT"))
+
+	http.ListenAndServe(":"+os.Getenv("PORT"), httpRateLimiter.RateLimit(router))
 }
 
 func getStableVersion() (string, error) {

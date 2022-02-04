@@ -54,11 +54,13 @@ func main() {
 	}).Methods("GET")
 
 	router.HandleFunc("/python-prereleases", func(rw http.ResponseWriter, r *http.Request) {
+		res, err := getPrereleaseVersion()
+		if err != nil {
+			log.Fatal(err)
+		}
 		rw.WriteHeader(http.StatusOK)
-		rw.Write([]byte("Under Implementation"))
+		rw.Write([]byte(res))
 	}).Methods("GET")
-
-	fmt.Println(os.Getenv("PORT"))
 
 	http.ListenAndServe(":"+os.Getenv("PORT"), httpRateLimiter.RateLimit(router))
 }
@@ -75,8 +77,24 @@ func getStableVersion() (string, error) {
 		v = versionChecker(v, e.Attr("href"))
 	})
 
-	// c.Visit("https://www.python.org/ftp/python/")
 	c.Visit("https://www.python.org/downloads/source/")
+
+	return v.String(), nil
+}
+
+func getPrereleaseVersion() (string, error) {
+	v, err := version.NewVersion("0")
+	if err != nil {
+		return "", errors.New("Latest version: " + err.Error())
+	}
+
+	c := colly.NewCollector()
+
+	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
+		v = versionChecker(v, e.Attr("href"))
+	})
+
+	c.Visit("https://www.python.org/ftp/python/")
 
 	return v.String(), nil
 }

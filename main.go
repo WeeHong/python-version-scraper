@@ -53,7 +53,7 @@ func main() {
 		rw.Write([]byte(res))
 	}).Methods("GET")
 
-	router.HandleFunc("/python-prereleases", func(rw http.ResponseWriter, r *http.Request) {
+	router.HandleFunc("/python-prerelease", func(rw http.ResponseWriter, r *http.Request) {
 		res, err := getPrereleaseVersion()
 		if err != nil {
 			log.Fatal(err)

@@ -1,7 +1,6 @@
 package main
 
 import (
-	"errors"
 	"fmt"
 	"log"
 	"net/http"
@@ -15,6 +14,8 @@ import (
 	"github.com/throttled/throttled"
 	"github.com/throttled/throttled/store/memstore"
 )
+
+var regex = regexp.MustCompile(`\d+(\.\d+)+`)
 
 func main() {
 	err := godotenv.Load(".env")
@@ -68,13 +69,16 @@ func main() {
 func getStableVersion() (string, error) {
 	v, err := version.NewVersion("0")
 	if err != nil {
-		return "", errors.New("Latest version: " + err.Error())
+		return "", fmt.Errorf("latest version: %s", err.Error())
 	}
 
 	c := colly.NewCollector()
 
 	c.OnHTML(".col-row.two-col .column:first-child a[href]", func(e *colly.HTMLElement) {
-		v = versionChecker(v, e.Attr("href"))
+		v, err = extractVersion(v, e.Attr("href"))
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 
 	c.Visit("https://www.python.org/downloads/source/")
@@ -85,13 +89,16 @@ func getStableVersion() (string, error) {
 func getPrereleaseVersion() (string, error) {
 	v, err := version.NewVersion("0")
 	if err != nil {
-		return "", errors.New("Latest version: " + err.Error())
+		return "", fmt.Errorf("prerelease version: %s", err.Error())
 	}
 
 	c := colly.NewCollector()
 
 	c.OnHTML("a[href]", func(e *colly.HTMLElement) {
-		v = versionChecker(v, e.Attr("href"))
+		v, err = extractVersion(v, e.Attr("href"))
+		if err != nil {
+			log.Fatal(err)
+		}
 	})
 
 	c.Visit("https://www.python.org/ftp/python/")
@@ -99,21 +106,18 @@ func getPrereleaseVersion() (string, error) {
 	return v.String(), nil
 }
 
-func versionChecker(v *version.Version, cur string) *version.Version {
-	regex := regexp.MustCompile(`\d+(\.\d+)+`)
+func extractVersion(v *version.Version, cur string) (*version.Version, error) {
 	matched := regex.FindAllString(cur, -1)
 
 	if len(matched) > 0 {
-		fmt.Println(matched[0])
-
 		current, err := version.NewVersion(matched[0])
 		if err != nil {
-			panic(err.Error())
+			return nil, fmt.Errorf("extract version: %s", err.Error())
 		}
 		if v.LessThan(current) {
 			v = current
 		}
 	}
 
-	return v
+	return v, nil
 }
